@@ -1,5 +1,7 @@
 # sturdy-middleware
 
+[![Clojars Project](https://img.shields.io/clojars/v/com.sturdystats/sturdy-middleware.svg)](https://clojars.org/com.sturdystats/sturdy-middleware)
+
 **Small, focused Ring middleware for security and observability.**
 
 This library collects a set of middleware components used across Sturdy Statistics web services.
@@ -23,6 +25,14 @@ These are not intended to be framework defaults; rather, they encode specific op
 
 - **Cheap by default**
   No unnecessary allocation, parsing, or reflection on hot paths.
+
+## Installation
+
+Add to `deps.edn`:
+
+```clojure
+{:deps {com.sturdystats/sturdy-middleware {:mvn/version "VERSION"}}}
+```
 
 ## Middleware overview
 
