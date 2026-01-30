@@ -6,8 +6,8 @@
 
 (defn method-mutable? [request]
   (let [m (:request-method request)]
-   (boolean
-    (#{:post :put :patch :delete} m))))
+    (boolean
+     (#{:post :put :patch :delete} m))))
 
 (defn status-error? [response]
   (let [s (:status response)]
@@ -44,3 +44,37 @@
          (if (contains? lc-set token-lc)
            (string/join ", " parts)
            (string/join ", " (conj (vec parts) token))))))))
+
+(defn- normalize-ip-ish [s]
+  (when-let [s (some-> s string/trim not-empty)]
+    (let [s (string/lower-case s)]
+      (when-not (= s "unknown")
+        (let [s (string/replace s #"^\[(.*)\]$" "$1")]
+          ;; strip :port only for IPv4:port
+          (if (re-matches #"\d+\.\d+\.\d+\.\d+:\d+" s)
+            (first (string/split s #":" 2))
+            s))))))
+
+(defn- parse-xff-chain [xff]
+  (->> (string/split (or xff "") #",")
+       (map normalize-ip-ish)
+       (remove nil?)
+       vec))
+
+(defn request-ip
+  "Cloudflare -> nginx -> Ring.
+   Returns {:ip ... :source ... :xff-chain [...]}
+   If trust-proxies? is false, ignores headers and uses :remote-addr."
+  ([req] (request-ip req {:trust-proxies? true}))
+  ([req {:keys [trust-proxies?] :or {trust-proxies? true}}]
+   (let [hdrs (:headers req)
+         remote (normalize-ip-ish (:remote-addr req))
+         cf     (normalize-ip-ish (get hdrs "cf-connecting-ip"))
+         xff    (parse-xff-chain (get hdrs "x-forwarded-for"))
+         xff0   (first xff)]
+     (if (not trust-proxies?)
+       {:ip remote :source :remote-addr :xff-chain xff}
+       (cond
+         cf   {:ip cf   :source :cf-connecting-ip :xff-chain xff}
+         xff0 {:ip xff0 :source :x-forwarded-for  :xff-chain xff}
+         :else {:ip remote :source :remote-addr :xff-chain xff})))))
