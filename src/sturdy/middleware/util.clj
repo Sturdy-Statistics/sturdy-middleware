@@ -64,17 +64,34 @@
 (defn request-ip
   "Cloudflare -> nginx -> Ring.
    Returns {:ip ... :source ... :xff-chain [...]}
-   If trust-proxies? is false, ignores headers and uses :remote-addr."
-  ([req] (request-ip req {:trust-proxies? true}))
-  ([req {:keys [trust-proxies?] :or {trust-proxies? true}}]
-   (let [hdrs (:headers req)
+   If trust-proxies? is false, ignores headers and uses :remote-addr.
+   If trust-x-real-ip? is true, prioritizes the X-Real-IP header set by Nginx."
+  ([req]
+   (request-ip req {:trust-proxies? true :trust-x-real-ip? true}))
+  ([req {:keys [trust-proxies? trust-x-real-ip?]
+         :or {trust-proxies? true
+              trust-x-real-ip? true}}]
+   (let [hdrs   (:headers req)
          remote (normalize-ip-ish (:remote-addr req))
+         x-real (normalize-ip-ish (get hdrs "x-real-ip"))
          cf     (normalize-ip-ish (get hdrs "cf-connecting-ip"))
          xff    (parse-xff-chain (get hdrs "x-forwarded-for"))
          xff0   (first xff)]
      (if (not trust-proxies?)
        {:ip remote :source :remote-addr :xff-chain xff}
        (cond
-         cf   {:ip cf   :source :cf-connecting-ip :xff-chain xff}
-         xff0 {:ip xff0 :source :x-forwarded-for  :xff-chain xff}
-         :else {:ip remote :source :remote-addr :xff-chain xff})))))
+         ;; 1. Absolute highest priority: Nginx's sanitized X-Real-IP
+         (and trust-x-real-ip? x-real)
+         {:ip x-real :source :x-real-ip :xff-chain xff}
+
+         ;; 2. Legacy fallback: Direct Cloudflare header (if not using X-Real-IP)
+         cf
+         {:ip cf     :source :cf-connecting-ip :xff-chain xff}
+
+         ;; 3. Generic proxy fallback
+         xff0
+         {:ip xff0   :source :x-forwarded-for  :xff-chain xff}
+
+         ;; 4. Direct connection
+         :else
+         {:ip remote :source :remote-addr :xff-chain xff})))))
