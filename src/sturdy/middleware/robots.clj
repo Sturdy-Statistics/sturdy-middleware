@@ -7,10 +7,10 @@
   "Add/extend X-Robots-Tag with conservative no-index directives (idempotent)."
   [response]
   (when response
-    (resp/header response
-                 "X-Robots-Tag"
-                 (-> (get-in response [:headers "X-Robots-Tag"])
-                     (u/add-header-token "noindex")
-                     (u/add-header-token "noimageindex")
-                     (u/add-header-token "noarchive")
-                     (u/add-header-token "nosnippet")))))
+    (resp/update-header response "X-Robots-Tag"
+                        (fn [existing-val]
+                          (-> existing-val
+                              (u/add-header-token "noindex")
+                              (u/add-header-token "noimageindex")
+                              (u/add-header-token "noarchive")
+                              (u/add-header-token "nosnippet"))))))

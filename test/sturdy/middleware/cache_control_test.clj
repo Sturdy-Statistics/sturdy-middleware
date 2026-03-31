@@ -23,6 +23,11 @@
     (is (= "foo, Cookie" (c/add-vary-token "  foo  " "Cookie")))
     (is (= "foo, bar, Cookie" (c/add-vary-token " foo,  bar " "Cookie"))))
 
+  (testing "respects existing header regardless of case"
+    (let [r0 (assoc-in (resp/response "ok") [:headers "vary"] "Accept-Encoding")
+          r1 (c/with-vary-cookie r0)]
+      (is (= "Accept-Encoding, Cookie" (resp/get-header r1 "Vary")))))
+
   (testing "keeps star"
     (is (= "*" (c/add-vary-token "*" "Cookie"))))
 

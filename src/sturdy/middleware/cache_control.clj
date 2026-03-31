@@ -1,6 +1,5 @@
 (ns sturdy.middleware.cache-control
   (:require
-   [clojure.string :as string]
    [ring.util.response :as resp]
    [sturdy.middleware.util :as u]))
 
@@ -74,9 +73,7 @@
 
 (defn with-vary-cookie [response]
   (when response
-    (resp/header response
-                 "Vary"
-                 (add-vary-token (get-in response [:headers "Vary"]) "Cookie"))))
+    (resp/update-header response "Vary" add-vary-token "Cookie")))
 
 (defn wrap-with-vary-cookie
   "Middleware that adds 'Vary: Cookie' to the response header."
