@@ -63,6 +63,8 @@
     (is (= "1.2.3.4" (#'u/normalize-ip-ish "1.2.3.4:1234"))))
   (testing "ipv6 bracket form"
     (is (= "2001:db8::1" (#'u/normalize-ip-ish "[2001:db8::1]"))))
+  (testing "ipv6 bracket form with port"
+    (is (= "2001:db8::1" (#'u/normalize-ip-ish "[2001:db8::1]:8080"))))
   (testing "does not strip ipv6 colons"
     (is (= "2001:db8::1" (#'u/normalize-ip-ish "2001:db8::1")))))
 
@@ -87,6 +89,12 @@
            (u/request-ip {:remote-addr "9.9.9.9"
                           :headers {"cf-connecting-ip" "1.1.1.1"
                                     "x-forwarded-for" "2.2.2.2, 3.3.3.3"}}))))
+
+  (testing "x-real-ip wins over cf-connecting-ip when both present"
+    (is (= {:ip "8.8.8.8" :source :x-real-ip :xff-chain []}
+           (u/request-ip {:remote-addr "9.9.9.9"
+                          :headers {"x-real-ip" "8.8.8.8"
+                                    "cf-connecting-ip" "1.1.1.1"}}))))
 
   (testing "falls back to xff left-most"
     (is (= {:ip "2.2.2.2" :source :x-forwarded-for :xff-chain ["2.2.2.2" "3.3.3.3"]}

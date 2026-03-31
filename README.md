@@ -12,6 +12,8 @@ We may not accept feature requests that dilute its focus.
 
 These are not intended to be framework defaults; rather, they encode specific operational and security decisions that we want to apply consistently across our applications.
 
+**Note that `sturdy-middleware` assumes the ingress layer (Nginx/Cloudflare) is responsible for sanitizing proxy headers.**
+
 ## Design principles
 
 - **Explicit code**
@@ -175,6 +177,7 @@ This library exists to centralize **security-affecting middleware** so that:
 
 ## Security posture summary
 
+- **Assumes the ingress layer (Nginx/Cloudflare) is responsible for sanitizing proxy headers**
 - Defensive handling of user-supplied headers
 - Conservative cache control for private data
 - Explicit same-origin enforcement

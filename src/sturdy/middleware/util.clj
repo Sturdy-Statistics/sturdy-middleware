@@ -49,7 +49,8 @@
   (when-let [s (some-> s string/trim not-empty)]
     (let [s (string/lower-case s)]
       (when-not (= s "unknown")
-        (let [s (string/replace s #"^\[(.*)\]$" "$1")]
+        ;; Safely extract the IPv6 address from brackets, ignoring any trailing port
+        (let [s (string/replace s #"^\[([^\]]+)\](:\d+)?$" "$1")]
           ;; strip :port only for IPv4:port
           (if (re-matches #"\d+\.\d+\.\d+\.\d+:\d+" s)
             (first (string/split s #":" 2))
