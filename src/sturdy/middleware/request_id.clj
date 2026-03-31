@@ -26,10 +26,11 @@
   "Return the first trusted incoming id found in headers."
   [headers header-names]
   (some (fn [name]
-          (when-let [raw (get headers name)]
-            (case (string/lower-case name)
-              "traceparent" (parse-traceparent raw)
-              (safe-id raw))))
+          (let [lower-name (string/lower-case name)] ;; Ensure lower-case lookup
+            (when-let [raw (get headers lower-name)]
+              (case lower-name
+                "traceparent" (parse-traceparent raw)
+                (safe-id raw)))))
         header-names))
 
 (defn wrap-request-id

@@ -7,17 +7,22 @@
   (let [handler (fn [_] {:status 200 :headers {} :body "ok"})
         mw      (rs/wrap-max-request-size handler 1024)]
 
-    (testing "allows when Content-Length is missing"
+    (testing "allows when no body is intended (missing length and tx-encoding)"
       (is (= 200 (:status (mw {:headers {}})))))
-
-    (testing "allows when Content-Length is invalid"
-      (is (= 200 (:status (mw {:headers {"content-length" "nope"}})))))
 
     (testing "allows when Content-Length <= max"
       (is (= 200 (:status (mw {:headers {"content-length" "1024"}}))))
       (is (= 200 (:status (mw {:headers {"content-length" "100"}})))))
 
-    (testing "rejects when Content-Length > max (uses render hook)"
+    (testing "rejects 411 when Content-Length is invalid (Fail Closed)"
+      (is (= 411 (:status (mw {:headers {"content-length" "nope"}})))))
+
+    (testing "rejects 411 when Transfer-Encoding is chunked (DoS Protection)"
+      (let [resp (mw {:headers {"transfer-encoding" "chunked"}})]
+        (is (= 411 (:status resp)))
+        (is (= "close" (get-in resp [:headers "Connection"])))))
+
+    (testing "rejects 413 when Content-Length > max (uses render hook)"
       (let [seen (atom nil)]
         (binding [rs/*render-too-large*
                   (fn [ctx]
@@ -32,5 +37,14 @@
             (is (= "abc" (:request-id @seen)))
             (is (= 1024 (:max-upload-bytes @seen)))))))
 
-    (testing "accepts keyword header key too"
-      (is (= 200 (:status (mw {:headers {:content-length "10"}})))))))
+    (testing "rejects 411 missing length uses *render-length-required* hook"
+      (let [seen (atom nil)]
+        (binding [rs/*render-length-required*
+                  (fn [ctx]
+                    (reset! seen ctx)
+                    "ERR-411")]
+          (let [resp (mw {:headers {"transfer-encoding" "chunked"}
+                          :request-id "def"})]
+            (is (= 411 (:status resp)))
+            (is (= 411 (:code @seen)))
+            (is (= "def" (:request-id @seen)))))))))
