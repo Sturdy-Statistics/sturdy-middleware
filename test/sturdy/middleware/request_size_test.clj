@@ -28,7 +28,7 @@
                   (fn [ctx]
                     (reset! seen ctx)
                     "ERR")]
-          (let [resp (mw {:headers {"content-length" "1025"}
+          (let [resp (mw {:headers {"content-length" "8192"}
                           :request-id "abc"})]
             (is (= 413 (:status resp)))
             (is (= "close" (get-in resp [:headers "Connection"])))
