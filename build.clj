@@ -79,7 +79,7 @@
     :basis     basis
     :src-dirs  ["src"]
     :pom-data
-    [[:description "A security-focused Clojure validation library built on Malli."]
+    [[:description "Small, focused Ring middleware for security and observability."]
      [:url "https://github.com/Sturdy-Statistics/sturdy-middleware"]
      [:licenses
       [:license
