@@ -25,7 +25,7 @@
 (defn- parse-content-length
   "Parse Content-Length header value to a Long, or nil if missing/invalid."
   [s]
-  (when (and s (not (string/blank? s)))
+  (when (and s (re-matches #"[0-9]+" (str s)))
     (try
       (Long/parseLong (str s))
       (catch Exception _

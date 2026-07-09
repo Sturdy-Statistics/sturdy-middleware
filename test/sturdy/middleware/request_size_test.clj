@@ -17,6 +17,12 @@
     (testing "rejects 411 when Content-Length is invalid (Fail Closed)"
       (is (= 411 (:status (mw {:headers {"content-length" "nope"}})))))
 
+    (testing "rejects 411 when Content-Length uses invalid numeric syntax"
+      (is (= 411 (:status (mw {:headers {"content-length" "-1"}}))))
+      (is (= 411 (:status (mw {:headers {"content-length" "+1"}}))))
+      (is (= 411 (:status (mw {:headers {"content-length" " 8192 "}}))))
+      (is (= 411 (:status (mw {:headers {"content-length" "999999999999999999999"}})))))
+
     (testing "rejects 411 when Transfer-Encoding is chunked (DoS Protection)"
       (let [resp (mw {:headers {"transfer-encoding" "chunked"}})]
         (is (= 411 (:status resp)))
