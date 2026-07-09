@@ -41,6 +41,15 @@
                                :scheme :https
                                :headers {"host" "example.com"}})))))))
 
+(deftest same-origin-falls-back-to-server-name-and-port
+  (let [mw (o/wrap-require-same-origin-strict ok-handler)]
+    (testing "POST passes without Host when Origin matches server-name and non-default port"
+      (is (= 200 (:status (mw {:request-method :post
+                               :scheme :https
+                               :server-name "example.com"
+                               :server-port 8443
+                               :headers {"origin" "https://example.com:8443"}})))))))
+
 (deftest proxy-scheme
   (let [mw (o/wrap-require-same-origin-strict ok-handler)]
     (is (= 200 (:status (mw {:request-method :post

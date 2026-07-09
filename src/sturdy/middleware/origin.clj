@@ -15,13 +15,13 @@
   "Prefer Host header; else combine :server-name and :server-port."
   [req]
   (or (get-in req [:headers "host"])
-      (let [name   (:server-name req)
-            port   (:server-port req)
-            scheme (name (:scheme req))]
+      (let [server-name (:server-name req)
+            port        (:server-port req)
+            scheme      (clojure.core/name (:scheme req))]
 
         (if (default-port? scheme port)
-          name
-          (str name ":" port)))))
+          server-name
+          (str server-name ":" port)))))
 
 (defn- req-scheme
   "Best-effort request scheme. If behind a trusted proxy, allow x-forwarded-proto to override."
