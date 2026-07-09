@@ -6,18 +6,62 @@
 
 (set! *warn-on-reflection* true)
 
-(defn- default-port? [scheme port]
+(defn- default-port?
+  "Returns true when `port` is absent or the default for `scheme`."
+  [scheme port]
   (or (nil? port)
       (and (= "http" scheme) (= 80 port))
       (and (= "https" scheme) (= 443 port))))
 
+(defn- default-port
+  "Returns the default origin port for supported HTTP schemes."
+  [scheme]
+  (case scheme
+    "http" 80
+    "https" 443
+    nil))
+
+(defn- single-colon?
+  "True when `s` has one colon, which marks a host:port form for non-IPv6 hosts."
+  [s]
+  (= 1 (count (filter #(= \: %) s))))
+
+(defn- normalize-host-default-port
+  "Removes an explicit default port from a Host-style value for `scheme`."
+  [host scheme]
+  (if-let [port (default-port scheme)]
+    (let [suffix (str ":" port)]
+      (cond
+        ;; IPv6 address
+        (string/starts-with? host "[")
+        (let [close-bracket (string/index-of host "]")]
+          (if (and close-bracket
+                   (= suffix (subs host (inc close-bracket))))
+            (subs host 0 (inc close-bracket))
+            host))
+
+        ;; domain name
+        (and (single-colon? host) (string/ends-with? host suffix))
+        (subs host 0 (- (count host) (count suffix)))
+
+        :else
+        host))
+    host))
+
+(defn- normalize-origin-default-port
+  "Removes an explicit default port from an http/https Origin value."
+  [origin]
+  (if-let [[_ scheme host] (re-matches #"(https?)://(.+)" origin)]
+    (str scheme "://" (normalize-host-default-port host scheme))
+    origin))
+
 (defn- req-host
   "Prefer Host header; else combine :server-name and :server-port."
-  [req]
-  (or (get-in req [:headers "host"])
+  [req scheme]
+  (or (some-> (get-in req [:headers "host"])
+              (normalize-host-default-port scheme))
       (let [server-name (:server-name req)
-            port        (:server-port req)
-            scheme      (clojure.core/name (:scheme req))]
+            port        (:server-port req)]
 
         (if (default-port? scheme port)
           server-name
@@ -36,14 +80,20 @@
       (= xfwd "http")  "http"
       :else            (or scheme "http"))))
 
-(defn- expected-origin [req]
-  (str (req-scheme req) "://" (req-host req)))
+(defn- expected-origin
+  "Builds the normalized origin expected for this request."
+  [req]
+  (let [scheme (req-scheme req)]
+    (str scheme "://" (req-host req scheme))))
 
 (defn- same-origin?
   "Returns true if the Origin header matches the expected origin.
    If allow-missing-origin? is true, missing/blank Origin passes."
   [req allow-missing-origin?]
-  (let [origin (some-> (get-in req [:headers "origin"]) str string/trim)
+  (let [origin (some-> (get-in req [:headers "origin"])
+                       str
+                       string/trim
+                       normalize-origin-default-port)
         exp    (expected-origin req)]
     (if (string/blank? origin)
       allow-missing-origin?

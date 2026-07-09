@@ -50,6 +50,44 @@
                                :server-port 8443
                                :headers {"origin" "https://example.com:8443"}})))))))
 
+(deftest same-origin-normalizes-default-host-ports
+  (let [mw (o/wrap-require-same-origin-strict ok-handler)]
+    (testing "HTTPS Host may include default port when Origin omits it"
+      (is (= 200 (:status (mw {:request-method :post
+                               :scheme :https
+                               :headers {"host" "example.com:443"
+                                         "origin" "https://example.com"}})))))
+
+    (testing "HTTP Host may include default port when Origin omits it"
+      (is (= 200 (:status (mw {:request-method :post
+                               :scheme :http
+                               :headers {"host" "example.com:80"
+                                         "origin" "http://example.com"}})))))
+
+    (testing "Origin may include HTTPS default port when Host omits it"
+      (is (= 200 (:status (mw {:request-method :post
+                               :scheme :https
+                               :headers {"host" "example.com"
+                                         "origin" "https://example.com:443"}})))))
+
+    (testing "Origin may include HTTP default port when Host omits it"
+      (is (= 200 (:status (mw {:request-method :post
+                               :scheme :http
+                               :headers {"host" "example.com"
+                                         "origin" "http://example.com:80"}})))))
+
+    (testing "HTTPS non-default Host port still must match Origin"
+      (is (= 403 (:status (mw {:request-method :post
+                               :scheme :https
+                               :headers {"host" "example.com:8443"
+                                         "origin" "https://example.com"}})))))
+
+    (testing "HTTPS non-default Origin port still must match Host"
+      (is (= 403 (:status (mw {:request-method :post
+                               :scheme :https
+                               :headers {"host" "example.com"
+                                         "origin" "https://example.com:8443"}})))))))
+
 (deftest proxy-scheme
   (let [mw (o/wrap-require-same-origin-strict ok-handler)]
     (is (= 200 (:status (mw {:request-method :post
