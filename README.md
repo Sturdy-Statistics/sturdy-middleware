@@ -206,6 +206,7 @@ If you use this library, you will want to re-bind it.
 ### **Rebinding the error view**
 
 Applications may rebind `*render-too-large*` to customize either the response body or entire response.
+Because the hook is read when a request is handled, any dynamic `binding` must wrap request handling, not middleware construction.
 
 The hook is called with a context map containing:
 
@@ -231,17 +232,20 @@ The function may return **either**:
  '[sturdy.middleware.request-size :as rs]
  '[ring-errors.views :as err-v])
 
+(def render-too-large
+  (fn [{:keys [message request-id]}]
+    (err-v/error-page
+     {:code 413
+      :title "Content too large"
+      :blurb "Upload failed."}
+     {:message message
+      :id request-id})))
+
 (def app
-  (binding [rs/*render-too-large*
-            (fn [{:keys [message request-id]}]
-              (err-v/error-page
-               {:code 413
-                :title "Content too large"
-                :blurb "Upload failed."}
-               {:message message
-                :id request-id}))]
-    (-> handler
-        (rs/wrap-max-request-size (* 10 1024 1024)))))
+  (let [wrapped (rs/wrap-max-request-size handler (* 10 1024 1024))]
+    (fn [request]
+      (binding [rs/*render-too-large* render-too-large]
+        (wrapped request)))))
 ```
 
 ### **Global rebinding**
