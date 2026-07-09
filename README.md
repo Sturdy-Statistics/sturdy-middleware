@@ -74,9 +74,11 @@ Add to `deps.edn`:
 **Reject requests with a `Content-Length` exceeding a configured limit.**
 
 - Returns HTTP **413 Payload Too Large**
-- Closes the connection early
+- Drains moderately oversized request bodies so clients can receive the response
+- Closes the connection when the body is too large or size is ambiguous
 - Avoids buffering large request bodies unnecessarily
-- Allows requests with missing or invalid `Content-Length`
+- Allows requests with no implied body
+- Rejects invalid `Content-Length` and chunked transfer encoding with HTTP **411 Length Required**
 
 ### Use this:
 - On upload endpoints
@@ -152,7 +154,7 @@ Prevents search engines from indexing private pages.
 ```clj
 (-> handler
     wrap-request-id
-    wrap-max-request-size
+    (#(wrap-max-request-size % (* 10 1024 1024)))
     wrap-require-same-origin
     wrap-nostore-on-errors
     wrap-nostore)
