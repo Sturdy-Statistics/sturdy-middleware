@@ -1,7 +1,9 @@
 (ns sturdy.middleware.request-size-test
   (:require
    [clojure.test :refer [deftest is testing]]
-   [sturdy.middleware.request-size :as rs]))
+   [sturdy.middleware.request-size :as rs])
+  (:import
+   [java.io ByteArrayInputStream]))
 
 (deftest wrap-max-request-size-behavior
   (let [handler (fn [_] {:status 200 :headers {} :body "ok"})
@@ -42,6 +44,22 @@
             (is (= 413 (:code @seen)))
             (is (= "abc" (:request-id @seen)))
             (is (= 1024 (:max-upload-bytes @seen)))))))
+
+    (testing "drains moderately oversized bodies and leaves connection reusable"
+      (let [body (ByteArrayInputStream. (byte-array 1500))
+            resp (mw {:headers {"content-length" "1500"}
+                      :body body})]
+        (is (= 413 (:status resp)))
+        (is (nil? (get-in resp [:headers "Connection"])))
+        (is (zero? (.available body)))))
+
+    (testing "does not drain bodies beyond the drain cap and closes the connection"
+      (let [body (ByteArrayInputStream. (byte-array 8192))
+            resp (mw {:headers {"content-length" "8192"}
+                      :body body})]
+        (is (= 413 (:status resp)))
+        (is (= "close" (get-in resp [:headers "Connection"])))
+        (is (= 8192 (.available body)))))
 
     (testing "rejects 411 missing length uses *render-length-required* hook"
       (let [seen (atom nil)]
