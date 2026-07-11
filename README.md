@@ -158,20 +158,20 @@ Prevents search engines from indexing private pages.
 
 ```clj
 (-> handler
-    wrap-request-id
     (#(wrap-max-request-size % (* 10 1024 1024)))
     wrap-require-same-origin
     wrap-nostore-on-errors
-    wrap-nostore)
+    wrap-nostore
+    wrap-request-id)
 ```
 
 ### High-risk endpoints
 
 ```clj
 (-> handler
-    wrap-request-id
     wrap-require-same-origin-strict
-    wrap-nostore)
+    wrap-nostore
+    wrap-request-id)
 ```
 
 ## Why this exists
