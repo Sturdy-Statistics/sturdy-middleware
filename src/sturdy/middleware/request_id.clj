@@ -15,12 +15,17 @@
 
 (def ^:private traceparent-re
   ;; W3C traceparent: version-traceid-spanid-flags
-  #"(?i)^[0-9a-f]{2}-([0-9a-f]{32})-[0-9a-f]{16}-[0-9a-f]{2}$")
+  #"(?i)^[0-9a-f]{2}-([0-9a-f]{32})-([0-9a-f]{16})-[0-9a-f]{2}$")
+
+(def ^:private zero-trace-id "00000000000000000000000000000000")
+(def ^:private zero-parent-id "0000000000000000")
 
 (defn- parse-traceparent [v]
   (when-let [v' (some-> v str string/trim)]
-   (when-let [[_ tid] (re-matches traceparent-re v')]
-     tid)))
+    (when-let [[_ trace-id parent-id] (re-matches traceparent-re v')]
+      (when (and (not= zero-trace-id trace-id)
+                 (not= zero-parent-id parent-id))
+        trace-id))))
 
 (defn- incoming-id
   "Return the first trusted incoming id found in headers."

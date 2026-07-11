@@ -1,6 +1,6 @@
 (ns sturdy.middleware.request-id-test
   (:require
-   [clojure.test :refer [deftest is]]
+   [clojure.test :refer [deftest is testing]]
    [sturdy.middleware.request-id :as rid]))
 
 (deftest wrap-request-id-uses-incoming-x-request-id
@@ -25,6 +25,23 @@
         resp    (mw {:headers {"traceparent" tp}})]
     (is (= "4bf92f3577b34da6a3ce929d0e0e4736" (:body resp)))
     (is (= "4bf92f3577b34da6a3ce929d0e0e4736" (get-in resp [:headers "X-Request-Id"])))))
+
+(deftest wrap-request-id-rejects-reserved-zero-traceparent-identifiers
+  (let [handler (fn [req] {:status 200 :headers {} :body (:request-id req)})
+        mw      (rid/wrap-request-id
+                 handler
+                 {:header-names ["traceparent" "x-request-id"]
+                  :id-fn (constantly "generated-id")})]
+    (testing "an all-zero trace ID falls through to the next trusted header"
+      (let [tp   "00-00000000000000000000000000000000-00f067aa0ba902b7-01"
+            resp (mw {:headers {"traceparent" tp
+                                "x-request-id" "later-request-id"}})]
+        (is (= "later-request-id" (:body resp)))))
+
+    (testing "an all-zero parent ID falls back to a generated ID"
+      (let [tp   "00-4bf92f3577b34da6a3ce929d0e0e4736-0000000000000000-01"
+            resp (mw {:headers {"traceparent" tp}})]
+        (is (= "generated-id" (:body resp)))))))
 
 (deftest wrap-request-id-fallback-and-nil-response
   (let [mw (rid/wrap-request-id (fn [_] nil))]
