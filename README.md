@@ -14,6 +14,11 @@ These are not intended to be framework defaults; rather, they encode specific op
 
 **Note that `sturdy-middleware` assumes the ingress layer (Nginx/Cloudflare) is responsible for sanitizing proxy headers.**
 
+## Ring handler compatibility
+
+`sturdy-middleware` supports synchronous Ring handlers only.
+Its middleware wrappers implement the one-argument `(handler request)` contract and do not support Ring's asynchronous `(handler request respond raise)` contract.
+
 ## Design principles
 
 - **Explicit code**
