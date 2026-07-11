@@ -27,26 +27,27 @@
   (= 1 (count (filter #(= \: %) s))))
 
 (defn- normalize-host-default-port
-  "Removes an explicit default port from a Host-style value for `scheme`."
+  "Lowercases a Host-style value and removes an explicit default port for `scheme`."
   [host scheme]
-  (if-let [port (default-port scheme)]
-    (let [suffix (str ":" port)]
-      (cond
-        ;; IPv6 address
-        (string/starts-with? host "[")
-        (let [close-bracket (string/index-of host "]")]
-          (if (and close-bracket
-                   (= suffix (subs host (inc close-bracket))))
-            (subs host 0 (inc close-bracket))
-            host))
+  (let [host (string/lower-case host)]
+    (if-let [port (default-port scheme)]
+      (let [suffix (str ":" port)]
+        (cond
+          ;; IPv6 address
+          (string/starts-with? host "[")
+          (let [close-bracket (string/index-of host "]")]
+            (if (and close-bracket
+                     (= suffix (subs host (inc close-bracket))))
+              (subs host 0 (inc close-bracket))
+              host))
 
-        ;; domain name
-        (and (single-colon? host) (string/ends-with? host suffix))
-        (subs host 0 (- (count host) (count suffix)))
+          ;; domain name
+          (and (single-colon? host) (string/ends-with? host suffix))
+          (subs host 0 (- (count host) (count suffix)))
 
-        :else
-        host))
-    host))
+          :else
+          host))
+      host)))
 
 (defn- normalize-origin-default-port
   "Removes an explicit default port from an http/https Origin value."
@@ -61,11 +62,11 @@
   (or (some-> (get-in req [:headers "host"])
               (normalize-host-default-port scheme))
       (let [server-name (:server-name req)
-            port        (:server-port req)]
-
-        (if (default-port? scheme port)
-          server-name
-          (str server-name ":" port)))))
+            port        (:server-port req)
+            host        (if (default-port? scheme port)
+                          server-name
+                          (str server-name ":" port))]
+        (normalize-host-default-port host scheme))))
 
 (defn- req-scheme
   "Best-effort request scheme. If behind a trusted proxy, allow x-forwarded-proto to override."

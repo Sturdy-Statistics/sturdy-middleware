@@ -88,6 +88,26 @@
                                :headers {"host" "example.com"
                                          "origin" "https://example.com:8443"}})))))))
 
+(deftest same-origin-compares-hostnames-case-insensitively
+  (let [mw (o/wrap-require-same-origin-strict ok-handler)]
+    (testing "mixed-case Host matches a lowercase Origin"
+      (is (= 200 (:status (mw {:request-method :post
+                               :scheme :https
+                               :headers {"host" "EXAMPLE.com"
+                                         "origin" "https://example.com"}})))))
+
+    (testing "mixed-case Origin matches a lowercase Host"
+      (is (= 200 (:status (mw {:request-method :post
+                               :scheme :https
+                               :headers {"host" "example.com"
+                                         "origin" "https://ExAmPlE.CoM"}})))))
+
+    (testing "case-insensitive comparison retains default-port normalization"
+      (is (= 200 (:status (mw {:request-method :post
+                               :scheme :https
+                               :headers {"host" "EXAMPLE.com:443"
+                                         "origin" "https://example.COM"}})))))))
+
 (deftest proxy-scheme
   (let [mw (o/wrap-require-same-origin-strict ok-handler)]
     (is (= 200 (:status (mw {:request-method :post
