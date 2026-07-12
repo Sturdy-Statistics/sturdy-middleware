@@ -212,8 +212,10 @@ Designed for production use in long-running services.
 By default, oversized requests return:
 
 * HTTP **413 Payload Too Large**
-* `Connection: close`
 * A minimal, self-contained HTML error page
+
+When a moderately oversized request body is drained successfully, the connection remains reusable.
+If the declared body is too large to drain or the drain cannot complete, the response includes `Connection: close`.
 
 This default is safe and dependency-free, but is likely too basic for production use.
 If you use this library, you will want to re-bind it.
