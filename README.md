@@ -94,6 +94,16 @@ Add to `deps.edn`:
 (wrap-max-request-size handler (* 10 1024 1024)) ; 10 MB
 ```
 
+### Known limitation
+
+`wrap-max-request-size` infers that a request has a body from its `Content-Length` or `Transfer-Encoding` header.
+If both headers are absent, the middleware passes the request through without limiting its `:body` stream.
+This can affect HTTP/2 requests because HTTP/2 frames request bodies without using `Transfer-Encoding: chunked`, and a Ring adapter may expose such a body without a `Content-Length` header.
+
+Applications must not rely on this middleware as the only body-size boundary for headerless requests.
+Enforce a protocol-level request-size limit at the ingress or Ring adapter as well.
+A future version may add protocol-independent stream limiting or an explicit policy requiring `Content-Length` on selected request methods.
+
 ## Same-origin enforcement
 
 ### `wrap-require-same-origin` (tolerant)
