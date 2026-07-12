@@ -3,7 +3,7 @@
    [clojure.test :refer [deftest is testing]]
    [sturdy.middleware.request-size :as rs])
   (:import
-   [java.io ByteArrayInputStream]))
+   [java.io ByteArrayInputStream InputStream]))
 
 (deftest wrap-max-request-size-behavior
   (let [handler (fn [_] {:status 200 :headers {} :body "ok"})
@@ -52,6 +52,21 @@
         (is (= 413 (:status resp)))
         (is (nil? (get-in resp [:headers "Connection"])))
         (is (zero? (.available body)))))
+
+    (testing "stops draining at Content-Length without reading for EOF"
+      (let [reads (atom 0)
+            body  (proxy [InputStream] []
+                    (read
+                      ([] (throw (ex-info "unexpected single-byte read" {})))
+                      ([_]
+                       (if (= 1 (swap! reads inc))
+                         1500
+                         (throw (ex-info "read past Content-Length" {}))))))
+            resp  (mw {:headers {"content-length" "1500"}
+                       :body body})]
+        (is (= 413 (:status resp)))
+        (is (nil? (get-in resp [:headers "Connection"])))
+        (is (= 1 @reads))))
 
     (testing "does not drain bodies beyond the drain cap and closes the connection"
       (let [body (ByteArrayInputStream. (byte-array 8192))

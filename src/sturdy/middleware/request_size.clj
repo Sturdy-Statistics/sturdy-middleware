@@ -90,17 +90,24 @@
     (default-length-required-body ctx)))
 
 (defn- drain-stream!
-  "Reads and discards bytes from the input stream up to `max-drain-bytes`.
-   Returns true if the stream was fully drained, false if the safety cap was hit."
-  [body ^long max-drain-bytes]
+  "Reads and discards `content-length` bytes, up to `max-drain-bytes`.
+   Returns true when the declared body was drained or EOF was reached, and false
+   if the safety cap was hit."
+  [body ^long content-length ^long max-drain-bytes]
   (if-not (instance? java.io.InputStream body)
     true
     (try
       (let [^java.io.InputStream is body
             buffer (byte-array 65536)] ;; 64KB chunks for maximum I/O throughput
         (loop [total 0]
-          (if (>= total max-drain-bytes)
+          (cond
+            (>= total content-length)
+            true ;; The declared request body has been consumed; do not wait for EOF.
+
+            (>= total max-drain-bytes)
             false ;; We hit the safety cap, abort the drain!
+
+            :else
             (let [bytes-read (.read is buffer)]
               (if (pos? bytes-read)
                 (recur (+ total bytes-read))
@@ -169,7 +176,7 @@
         (let [drain-cap      (* max-upload-bytes 2)
               too-huge?      (> len drain-cap)
               fully-drained? (and (not too-huge?)
-                                  (drain-stream! (:body request) drain-cap))
+                                  (drain-stream! (:body request) len drain-cap))
               base-resp      (too-large-response request max-upload-bytes)]
           (if fully-drained?
             ;; If we successfully drained it, leave connection open.
